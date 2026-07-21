@@ -16,21 +16,31 @@
 
 ## 安装
 
-```bash
-# 0. 获取本仓库
-git clone https://github.com/HoraceLuBFA/pdf-ocr-searchable.git ~/.agents/skills/pdf-ocr-searchable
+**方式 A：[skills CLI](https://skills.sh)（推荐）**——装到 `~/.agents/skills/` 并自动接入 Claude Code 等各家代理：
 
-# 1. OCRmyPDF + AppleOCR 插件（必须同一环境安装，--python 3.12 必需，3.14 装不上）
+```bash
+npx skills add HoraceLuBFA/pdf-ocr-searchable
+```
+
+**方式 B：手动 clone**
+
+```bash
+git clone https://github.com/HoraceLuBFA/pdf-ocr-searchable.git ~/.agents/skills/pdf-ocr-searchable
+# 作为 Claude Code skill 使用需再建软链：
+ln -s ~/.agents/skills/pdf-ocr-searchable ~/.claude/skills/pdf-ocr-searchable
+```
+
+**依赖（两种方式都需要）**
+
+```bash
+# OCRmyPDF + AppleOCR 插件（必须同一环境安装，--python 3.12 必需，3.14 装不上）
 uv tool install --python 3.12 ocrmypdf --with ocrmypdf-appleocr
 
-# 2. 外部依赖
+# 外部依赖
 brew install ghostscript poppler
 
-# 3.（可选）单图/单页随手 OCR 工具
+#（可选）单图/单页随手 OCR 工具
 npm install -g mac-ocr
-
-# 4.（可选）作为 Claude Code skill 使用
-ln -s ~/.agents/skills/pdf-ocr-searchable ~/.claude/skills/pdf-ocr-searchable
 ```
 
 验证（注意 ocrmypdf 的 help 输出走 stderr）：
