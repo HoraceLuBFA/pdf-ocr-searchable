@@ -1,0 +1,3 @@
+.DS_Store
+*.ocr.pdf
+__pycache__/
