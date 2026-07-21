@@ -32,7 +32,8 @@ usage() {
   --suffix S         输出文件名后缀（默认 .ocr）
   --force            连已有文字层的页也重做 OCR
   --check            只分诊不 OCR：报告每个 PDF 是否已有文字层
-  --md               另产出同名 .md 纯文字版（按行高+章节正则还原标题层级）
+  --md               另产出同名 .md 纯文字版（按行高+章节正则还原标题层级）；
+                     源 PDF 已可复制时跳过 OCR 直接生成
   --dry-run          只打印将要执行的命令
 
 已有 .ocr.pdf 且比源文件新时自动跳过 OCR（--force 除外），重出 md 不重跑识别。
@@ -106,7 +107,7 @@ count_chars() {
 }
 
 # --check：只分诊不 OCR。按「字数/页」密度分级——总字数会被元数据页/部分文字页
-# 严重误导（如 Anna's Archive 注入的元数据附件有几千字而正文全是扫描图），
+# 严重误导（常见于正文全是扫描图、但被注入了几千字元数据附件的电子书），
 # 中文正文密度通常数百字/页，<30 字/页视为疑似扫描件
 count_pages() {
   command -v pdfinfo >/dev/null 2>&1 && pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2}' && return
@@ -130,6 +131,14 @@ if [[ $CHECK -eq 1 ]]; then
   exit 0
 fi
 
+# 从带文字层的 PDF 生成层级化 Markdown（$1=PDF $2=输出 md）
+gen_md() {
+  local info
+  info="$(python3 "$SCRIPT_DIR/pdf_to_md.py" "$1" -o "$2" 2>&1)" \
+    && echo "  📄 $(basename "$2") ← ${info}" \
+    || { echo "  ❌ Markdown 生成失败: ${info}"; FAIL=$((FAIL+1)); }
+}
+
 OK=0; FAIL=0; FELL_BACK=0
 echo "预设=$PRESET  语言=$LANG_CODE  模式=$MODE  共 ${#FILES[@]} 个文件"
 echo
@@ -150,13 +159,20 @@ for src in "${FILES[@]}"; do
   if [[ $FORCE -eq 0 && -f "$dst" && "$dst" -nt "$src" ]]; then
     echo "  ⏭️  $base → 已有产物且比源文件新，跳过 OCR"
     OK=$((OK+1))
-    if [[ $MD -eq 1 ]]; then
-      mdout="$dir/${base}.md"
-      info="$(python3 "$SCRIPT_DIR/pdf_to_md.py" "$dst" -o "$mdout" 2>&1)" \
-        && echo "  📄 ${base}.md ← ${info}" \
-        || { echo "  ❌ Markdown 生成失败: ${info}"; FAIL=$((FAIL+1)); }
-    fi
+    [[ $MD -eq 1 ]] && gen_md "$dst" "$dir/${base}.md"
     continue
+  fi
+
+  # 源 PDF 已可复制（与 --check 同判据：≥30 字/页）：无需 OCR，
+  # --md 时直接从源生成 Markdown
+  if [[ $FORCE -eq 0 ]]; then
+    n=$(count_chars "$src"); pg=$(count_pages "$src"); [[ $pg -le 0 ]] && pg=1
+    if [[ $n -gt 0 && $((n / pg)) -ge 30 ]]; then
+      echo "  ✅ $base → 已可复制（约 $((n / pg)) 字/页），无需 OCR"
+      OK=$((OK+1))
+      [[ $MD -eq 1 ]] && gen_md "$src" "$dir/${base}.md"
+      continue
+    fi
   fi
 
   before=$(count_chars "$src")
@@ -184,12 +200,7 @@ for src in "${FILES[@]}"; do
       echo "  ✅ $base → 新增 ${gained} 字，共 ${after} 字"
     fi
     OK=$((OK+1))
-    if [[ $MD -eq 1 ]]; then
-      mdout="$dir/${base}.md"
-      info="$(python3 "$SCRIPT_DIR/pdf_to_md.py" "$dst" -o "$mdout" 2>&1)" \
-        && echo "  📄 ${base}.md ← ${info}" \
-        || { echo "  ❌ Markdown 生成失败: ${info}"; FAIL=$((FAIL+1)); }
-    fi
+    [[ $MD -eq 1 ]] && gen_md "$dst" "$dir/${base}.md"
   else
     echo "  ❌ $base → 失败 (rc=$rc)"
     sed 's/^/       /' <<<"$err" | tail -4

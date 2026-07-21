@@ -1,6 +1,6 @@
 ---
 name: pdf-ocr-searchable
-description: 把扫描版/图片版 PDF 在本地 OCR 成可搜索、可复制的 PDF，保留原始版式，中英文（含繁体、竖排、日韩）皆可，引擎为 Apple Vision，离线秒级。默认保真档内嵌图像逐字节不变，仅叠加隐形文字层；已有文字层的页自动跳过，支持整目录批量。当用户说「这个 PDF 不能复制/选不中字」「扫描件转文字」「PDF OCR」「让 PDF 可搜索」「把扫描的论文弄成能复制的」「searchable PDF」时使用。目标是产出 Markdown/结构化文本喂模型（而非 PDF）时不适用；翻译论文用 pdf-paper-zh-translation。
+description: 把扫描版/图片版 PDF 在本地 OCR 成可搜索、可复制的 PDF，保留原始版式，中英文（含繁体、竖排、日韩）皆可，引擎为 Apple Vision，离线秒级。默认保真档内嵌图像逐字节不变，仅叠加隐形文字层；已有文字层的页自动跳过，支持整目录批量；--md 另出层级化 Markdown 纯文字版，已可复制的 PDF 则跳过 OCR 直接生成。当用户说「这个 PDF 不能复制/选不中字」「扫描件转文字」「PDF OCR」「让 PDF 可搜索」「把扫描的论文弄成能复制的」「searchable PDF」「把 PDF 转成 Markdown/提取全文」时使用。
 ---
 
 # pdf-ocr-searchable
@@ -10,12 +10,13 @@ description: 把扫描版/图片版 PDF 在本地 OCR 成可搜索、可复制�
 ```bash
 S=~/.agents/skills/pdf-ocr-searchable/scripts/ocr_pdf.sh
 
-# 第一步：分诊。NEED=要处理，HAS=已可复制（别做无用功）
+# 第一步：分诊。NEED=要处理，HAS=已可复制
 $S --check <PDF 或目录>
 
 # 第二步：OCR。输出 原名.ocr.pdf 不覆盖原件；目录则递归批量
 # --md 另产出同名 .md 纯文字版（脚本按行高+章节正则还原标题层级，按段首缩进
-#      把扫描换行并回整段并剔除书眉/页码/边码，勿手工转换）
+#      把扫描换行并回整段并剔除书眉/页码/边码，勿手工转换）。
+#      已可复制的 PDF（HAS）自动跳过 OCR、直接从源生成 md——只要 Markdown 也走这条命令
 $S [--preset ...] [--lang chi_sim] [--md] <PDF 或目录>
 ```
 
