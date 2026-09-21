@@ -1,6 +1,6 @@
 ---
 name: pdf-ocr-searchable
-description: 把扫描版/图片版 PDF 在本地 OCR 成可搜索、可复制的 PDF，保留原始版式，中英文（含繁体、竖排、日韩）皆可，引擎为 Apple Vision，离线秒级。默认保真档内嵌图像逐字节不变，仅叠加隐形文字层；已有文字层的页自动跳过，支持整目录批量；--md 另出层级化 Markdown 纯文字版，已可复制的 PDF 则跳过 OCR 直接生成。当用户说「这个 PDF 不能复制/选不中字」「扫描件转文字」「PDF OCR」「让 PDF 可搜索」「把扫描的论文弄成能复制的」「searchable PDF」「把 PDF 转成 Markdown/提取全文」时使用。
+description: 在 macOS 本地将扫描 PDF OCR 为可搜索、可复制的 PDF，或提取 PDF 全文为 Markdown；支持批量处理和 AppleOCR 调试红框修复。用于扫描件无法选中文字、PDF OCR、PDF 转 Markdown 等请求。
 ---
 
 # pdf-ocr-searchable
@@ -22,7 +22,7 @@ $S [--preset ...] [--lang chi_sim] [--md] <PDF 或目录>
 
 已有 `.ocr.pdf` 且比源新时自动跳过 OCR（增量），重跑 `--md` 秒级完成。
 
-唯一要动脑的决策是选预设，三档是真实取舍不能兼得：
+按保真、去斜或体积需求选择预设：
 
 | `--preset` | 何时用 | 对原图 |
 |---|---|---|
@@ -33,6 +33,17 @@ $S [--preset ...] [--lang chi_sim] [--md] <PDF 或目录>
 `--lang` 默认 `chi_sim`；`zh-Hans`/`en`/`ja` 等写法脚本会自动归一，`chi_sim+eng` 叠加会被拒（中文模型本就能识别页内英文）。其余旗标看 `$S --help`。
 
 注意两点：英文占比高的文档，交付前抽查专有名词、页眉、参考文献（中文模型识别英文是实践表现，非正式双语支持）；识别字数异常少的文件脚本会标 ⚠️，需人工抽查。
+
+## 红框修复与验收
+
+本机验证的 AppleOCR 0.3.4 会写入红色调试框。脚本在 OCR 后及增量复用时清理已识别的 OCR Form，修改前保留 `.bak-redbox`，失败返回非零，不能据 OCR 识别成功宣称已完成交付。修复旧产物、遇到未知结构或升级插件时，先读 [红框兼容性与排查](references/red-boxes.md)。
+
+```bash
+"$S" --strip-boxes --dry-run <待修复的.ocr.pdf>  # 只检测
+"$S" --strip-boxes <待修复的.ocr.pdf或目录>      # 明确目标后修复
+```
+
+交付前抽查文字可搜索/复制及代表页的渲染；红框修复需核对修复前后的提取文本和图像流，并检查原问题页。字数相同不等于文字相同，未匹配到本脚本支持的框不等于不存在其他红框。
 
 ## 单张图片 / 只要文字不要 PDF
 

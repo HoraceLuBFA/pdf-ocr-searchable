@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # ocr_pdf.sh — 给扫描 PDF 叠加隐形文字层，使其可搜索、可复制。
 # 引擎：Apple Vision（经 ocrmypdf-appleocr 插件），livetext 失效自动回退 accurate。
+# 注意：插件给每个识别文本行都描一个硬编码红框（pdf.py 里 "1 0 0 RG ... h S"，
+# 本机 AppleOCR 0.3.4 的上层 __init__.py 固定启用 boxes，三种模式共用该生成入口，
+# 且没有命令行开关）。普通灰度扫描页看不出，但 1-bit ImageMask 扫描件纸面透明，
+# 红框会从底下透出来。故 OCR 后一律用 strip_ocr_boxes.py 清除。
 set -uo pipefail
 
 OCRMYPDF="${OCRMYPDF:-$HOME/.local/bin/ocrmypdf}"
@@ -14,6 +18,7 @@ SUFFIX=".ocr"
 DRYRUN=0
 FORCE=0
 CHECK=0
+STRIPONLY=0
 MD=0
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 declare -a INPUTS=()
@@ -32,11 +37,17 @@ usage() {
   --suffix S         输出文件名后缀（默认 .ocr）
   --force            连已有文字层的页也重做 OCR
   --check            只分诊不 OCR：报告每个 PDF 是否已有文字层
+  --strip-boxes      只清理红框不 OCR：剥掉 AppleOCR 文字层里的红色描边框
+                     （输入必须是待修复的产物；目录仅选 *<suffix>.pdf）
+                     首次修改前保留 .bak-redbox；支持 --dry-run
   --md               另产出同名 .md 纯文字版（按行高+章节正则还原标题层级）；
                      源 PDF 已可复制时跳过 OCR 直接生成
   --dry-run          只打印将要执行的命令
 
 已有 .ocr.pdf 且比源文件新时自动跳过 OCR（--force 除外），重出 md 不重跑识别。
+
+AppleOCR 插件会给每个文本行描一个硬编码红框且无开关可关，1-bit 扫描件上会
+透出来（整页文字套红框）；OCR 完成后由 strip_ocr_boxes.py 自动剥离，无需干预。
 
 示例:
   ocr_pdf.sh --check ~/Scans/          # 先看哪些需要处理
@@ -54,6 +65,7 @@ while [[ $# -gt 0 ]]; do
     --suffix) SUFFIX="$2"; shift 2 ;;
     --force)  FORCE=1; shift ;;
     --check)  CHECK=1; shift ;;
+    --strip-boxes) STRIPONLY=1; shift ;;
     --md)     MD=1; shift ;;
     --dry-run) DRYRUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -63,7 +75,31 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ ${#INPUTS[@]} -eq 0 ]] && { usage; exit 2; }
-[[ -x "$OCRMYPDF" ]] || { echo "找不到 ocrmypdf。安装：uv tool install --python 3.12 ocrmypdf --with ocrmypdf-appleocr" >&2; exit 127; }
+if [[ $STRIPONLY -eq 1 ]]; then
+  [[ $CHECK -eq 0 && $MD -eq 0 && $FORCE -eq 0 && -z "$OUTDIR" ]] || { echo "--strip-boxes 不与 --check/--md/--force/--outdir 混用" >&2; exit 2; }
+else
+  [[ -x "$OCRMYPDF" ]] || { echo "找不到 ocrmypdf。安装：uv tool install --python 3.12 ocrmypdf --with ocrmypdf-appleocr" >&2; exit 127; }
+fi
+
+# 红框剥离需要一个带 pikepdf 的解释器。pikepdf 是 ocrmypdf 自身的依赖，
+# 优先用 ocrmypdf 所在 venv 的 python；清理失败必须计入失败。
+STRIP_PY=""
+for cand in "$HOME/.local/share/uv/tools/ocrmypdf/bin/python" \
+            "$(dirname "$OCRMYPDF")/python" python3 python; do
+  [[ -n "$cand" ]] || continue
+  [[ -x "$cand" ]] || command -v "$cand" >/dev/null 2>&1 || continue
+  if "$cand" -c 'import pikepdf' >/dev/null 2>&1; then STRIP_PY="$cand"; break; fi
+done
+STRIP_TOOL="$SCRIPT_DIR/strip_ocr_boxes.py"
+
+# $1=PDF。清除插件写进文字层的红色调试框；无红框时不吭声。
+strip_debug_boxes() {
+  [[ -n "$STRIP_PY" && -f "$STRIP_TOOL" ]] || { echo "       红框清理工具或 pikepdf 缺失，产物未通过验收" >&2; return 1; }
+  local out
+  out="$("$STRIP_PY" "$STRIP_TOOL" "$1" 2>&1)" || { echo "       ⚠️  红框清理失败：$out" >&2; return 1; }
+  [[ "$out" == *已删除* ]] && echo "       🧹 ${out##*: }"
+  return 0
+}
 
 # 语言码归一：插件只认 tesseract 风格，把常见 BCP-47 写法静默映射过去；
 # 拦截 chi_sim+eng 叠加（插件不支持，且中文模型本就能识别页内英文）
@@ -90,6 +126,11 @@ esac
 declare -a FILES=()
 for item in "${INPUTS[@]}"; do
   if [[ -d "$item" ]]; then
+    if [[ $STRIPONLY -eq 1 ]]; then
+      while IFS= read -r f; do FILES+=("$f"); done \
+        < <(find "$item" -type f -iname "*${SUFFIX}.pdf" | sort)
+      continue
+    fi
     while IFS= read -r f; do FILES+=("$f"); done \
       < <(find "$item" -type f -iname '*.pdf' ! -iname "*${SUFFIX}.pdf" | sort)
   elif [[ -f "$item" ]]; then
@@ -131,6 +172,20 @@ if [[ $CHECK -eq 1 ]]; then
   exit 0
 fi
 
+# --strip-boxes：只清理红框（修复早期产出的 .ocr.pdf），不跑 OCR
+if [[ $STRIPONLY -eq 1 ]]; then
+  [[ -n "$STRIP_PY" ]] || { echo "找不到带 pikepdf 的 python3，无法清理红框。" >&2; exit 127; }
+  STRIP_FAIL=0
+  for src in "${FILES[@]}"; do
+    if [[ $DRYRUN -eq 1 ]]; then
+      "$STRIP_PY" "$STRIP_TOOL" --check "$src" || STRIP_FAIL=1
+    else
+      "$STRIP_PY" "$STRIP_TOOL" "$src" || STRIP_FAIL=1
+    fi
+  done
+  exit "$STRIP_FAIL"
+fi
+
 # 从带文字层的 PDF 生成层级化 Markdown（$1=PDF $2=输出 md）
 gen_md() {
   local info
@@ -158,6 +213,7 @@ for src in "${FILES[@]}"; do
   # 增量：产物已存在且比源新则不重跑 OCR（--force 除外）
   if [[ $FORCE -eq 0 && -f "$dst" && "$dst" -nt "$src" ]]; then
     echo "  ⏭️  $base → 已有产物且比源文件新，跳过 OCR"
+    strip_debug_boxes "$dst" || { FAIL=$((FAIL+1)); continue; }
     OK=$((OK+1))
     [[ $MD -eq 1 ]] && gen_md "$dst" "$dir/${base}.md"
     continue
@@ -190,6 +246,7 @@ for src in "${FILES[@]}"; do
   fi
 
   if [[ $rc -eq 0 ]]; then
+    strip_debug_boxes "$dst" || { FAIL=$((FAIL+1)); continue; }
     after=$(count_chars "$dst")
     gained=$((after - before))
     if [[ $before -gt 0 && $gained -le 0 ]]; then

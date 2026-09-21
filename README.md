@@ -1,5 +1,7 @@
 # pdf-ocr-searchable
 
+[V1.0.0 Release](https://github.com/HoraceLuBFA/pdf-ocr-searchable/releases/tag/V1.0.0)
+
 > Local, offline OCR for scanned PDFs on macOS — outputs searchable/copyable PDFs (original images preserved byte-for-byte) and optionally structured Markdown, powered by Apple Vision / Live Text. Excellent CJK + English quality. Also works as a [Claude Code](https://claude.com/claude-code) skill.
 
 把扫描版/图片版 PDF 在 Mac 本地 OCR 成**可搜索、可复制**的 PDF，可选同时产出**层级化 Markdown 全文**。引擎为 Apple Vision / Live Text（经 [OCRmyPDF](https://github.com/ocrmypdf/OCRmyPDF) + [ocrmypdf-appleocr](https://github.com/mkyt/OCRmyPDF-AppleOCR) 插件），全程离线，中英文（含繁体、竖排、日韩）皆可。
@@ -13,6 +15,18 @@
 
 - macOS 13+（Live Text 模式；12 及以下自动用 accurate 模式）
 - Homebrew、[uv](https://docs.astral.sh/uv/)、poppler（`pdftotext`/`pdfinfo`，Markdown 输出需要）
+
+V1.0.0 红框修复在本机 OCRmyPDF 17.8.1、AppleOCR 0.3.4、pikepdf 10.10.0、Python 3.12 环境验证。插件升级后如 OCR Form 结构变化，修复会报告错误，需要核对兼容性。
+
+## V1.0.0 更新
+
+- OCR 后自动清理 AppleOCR 已知调试框；支持直接修复旧产物、目录批量处理和只读预演。
+- 验证 OCR Form、字体及完整 PDF 指令，只移除匹配的调试框，保留合法红色图形；失败返回非零退出码。
+- 修复前备份，已有不同版本备份时按输入 SHA256 另存，支持同一路径重跑 OCR；原子替换前检查文件未被其他进程修改。
+- 保留文件权限及 macOS 扩展属性（包括 Finder 标签）。普通表单和未签名的签名域可修复；加密及已签名文件不执行修复。
+- 增加九项回归测试及[兼容性与排查说明](references/red-boxes.md)。
+
+**旧调用迁移**：`--strip-boxes` 现在直接接收待修复产物，例如 `书名.ocr.pdf`，不再根据 `书名.pdf` 推导兄弟文件。目录模式只选 `*<suffix>.pdf`，默认 `*.ocr.pdf`。
 
 ## 安装
 
@@ -59,6 +73,8 @@ $S 论文.pdf                     # OCR → 论文.ocr.pdf（不覆盖原件）
 $S --md 某本书.pdf              # 额外产出 某本书.md（整段正文 + 原书标题层级）
                                # 已可复制的 PDF 自动跳过 OCR、直接出 md
 $S --preset deskew --lang chi_tra ~/Scans/   # 拍歪的繁体件，整目录批量
+$S --strip-boxes --dry-run 某本书.ocr.pdf  # 只检测旧产物
+$S --strip-boxes 某本书.ocr.pdf # 修复该文件；修改前保留 .bak-redbox
 $S --help                      # 全部选项
 ```
 
@@ -84,14 +100,29 @@ $S --help                      # 全部选项
 - `mac-ocr searchable-pdf` 的文字层会丢英文词间空格，出可复制 PDF 一律走本脚本；`mac-ocr` 只用于把单图/单页直接吐成文字
 - Markdown 中目录、索引页以正文段落保留，未专门排版；极少数跨块折行的长章题可能截断
 - 空白页/识别失败与成功在退出码上无区别，靠脚本的字数验收（<20 字标 ⚠️）提示人工抽查
+- 本机验证的 AppleOCR 0.3.4 会生成红色调试框，可能透过 1-bit ImageMask 的透明区域显示。脚本自动清理已知 OCR Form 的固定调试框，清理失败计为失败；修改前保留 `.bak-redbox`。旧产物直接用 `$S --strip-boxes <待修复的.ocr.pdf>`，目录模式仅选 `*<suffix>.pdf`。版本证据、保守匹配边界和验收方法见 [红框兼容性与排查](references/red-boxes.md)。
 
 ## 文件
 
 ```
-SKILL.md              # Claude Code 触发入口
-scripts/ocr_pdf.sh    # 主脚本：分诊/批量 OCR/验收/回退/增量
-scripts/pdf_to_md.py  # PDF 文字层 → 层级化 Markdown（纯 stdlib）
+SKILL.md                    # Claude Code 触发入口
+scripts/ocr_pdf.sh          # 主脚本：分诊/批量 OCR/验收/回退/增量/清红框
+scripts/pdf_to_md.py        # PDF 文字层 → 层级化 Markdown（纯 stdlib）
+scripts/strip_ocr_boxes.py  # 删除 AppleOCR 红框（pikepdf，随 ocrmypdf 同环境）
+references/red-boxes.md     # 红框兼容边界、备份及排查
+tests/test_red_boxes.py     # 修复与失败路径回归测试
 ```
+
+## 开发验证
+
+在仓库根目录使用安装 OCRmyPDF 的 Python 环境运行：
+
+```bash
+bash -n scripts/ocr_pdf.sh
+~/.local/share/uv/tools/ocrmypdf/bin/python tests/test_red_boxes.py
+```
+
+测试需要 AppleOCR、pikepdf、Pillow、poppler；使用其他安装路径时替换解释器路径。九项测试覆盖文本和图像流保留、合法红框、渲染差异、幂等、目录和预演、错误传播、连续重跑备份、普通表单/签名保护，以及 macOS 权限和 Finder 标签。测试调用插件文字层生成器，不重新运行 Apple Vision 识别，也不代表跨系统或整书 OCR 全流程验收。PDF 容器会重写，不承诺文件级字节不变。
 
 ## 致谢
 
