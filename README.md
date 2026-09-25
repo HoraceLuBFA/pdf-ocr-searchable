@@ -2,7 +2,7 @@
 
 在 Mac 上把扫描版 PDF 转为**可搜索、可复制的文档**，并按需提取为 Markdown。基于 Apple Vision / Live Text，本地离线处理，适合论文、书籍和扫描资料整理。
 
-可作为 Agent Skill 使用，也可直接运行命令行脚本。[下载 V1.0.0](https://github.com/HoraceLuBFA/pdf-ocr-searchable/releases/tag/V1.0.0)
+可作为 Agent Skill 使用，也可直接运行命令行脚本。[下载 V1.0.1](https://github.com/HoraceLuBFA/pdf-ocr-searchable/releases/tag/V1.0.1)
 
 ## 功能
 
@@ -11,7 +11,7 @@
 - **多语言识别**：支持简体中文、繁体中文、英文、日文、韩文等，具体支持范围取决于识别模式和系统环境。
 - **批量与增量处理**：支持多个文件及目录输入；已有较新产物时跳过重复 OCR。
 - **保真、去斜与压缩**：按资料用途选择处理预设。
-- **自动红框修复**：清理受支持的 AppleOCR 调试框，也可单独修复已有产物；修改前保留备份，并保留文件权限及 macOS Finder 标签等扩展属性。
+- **自动红框修复**：清理受支持的 AppleOCR 调试框，也可单独修复已有产物，并保留文件权限及 macOS Finder 标签等扩展属性。
 
 ## 安装
 
@@ -125,8 +125,6 @@ OCR 后会自动清理受支持的 AppleOCR 调试框。处理已有产物时，
 # 批量修复目录中的 *.ocr.pdf
 "$S" --strip-boxes ~/Scans/
 ```
-
-修复前保留 `.bak-redbox` 备份；再次处理不同内容时按内容哈希另存，保留历史版本。备份不会自动删除，每份占用接近修复前 PDF 的空间。需要清理时，先按目标文件盘点备份，再确认哪些版本不再需要。
 
 修复支持普通表单和未签名的签名域，不改写加密或已签名文件。清理失败会报告错误，并停止该文件后续 Markdown 生成。适用格式与排查方法见[红框兼容性说明](references/red-boxes.md)。
 

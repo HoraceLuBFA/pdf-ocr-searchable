@@ -67,12 +67,12 @@ class RedBoxes(unittest.TestCase):
         return subprocess.run(['bash', str(SHELL), *map(str, args)], capture_output=True, text=True)
 
     def test_repair_preserves_content_and_is_idempotent(self):
-        original = sha(self.path)
         before_text, before_images = text(self.path), images(self.path)
+        before_files = set(self.d.iterdir())
         with pikepdf.open(self.path) as pdf:
             page_bytes = pdf.pages[0].Contents.read_bytes()
         self.assertEqual(stripper.strip_pdf(self.path), ('fixed', True))
-        self.assertEqual(sha(Path(str(self.path) + '.bak-redbox')), original)
+        self.assertEqual(set(self.d.iterdir()), before_files)
         self.assertEqual(text(self.path), before_text)
         self.assertEqual(images(self.path), before_images)
         with pikepdf.open(self.path) as pdf:
@@ -87,7 +87,6 @@ class RedBoxes(unittest.TestCase):
         result = self.run_shell('--strip-boxes', '--dry-run', self.d)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(sha(self.path), original)
-        self.assertFalse(Path(str(self.path) + '.bak-redbox').exists())
         result = self.run_shell('--strip-boxes', self.d)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotEqual(sha(self.path), original)
@@ -115,21 +114,6 @@ class RedBoxes(unittest.TestCase):
         result = self.run_shell('--strip-boxes', '--check', self.path)
         self.assertEqual(result.returncode, 2)
         self.assertEqual(sha(self.path), original)
-
-    def test_stale_backup_does_not_block_new_ocr(self):
-        stripper.strip_pdf(self.path)
-        backup = Path(str(self.path) + '.bak-redbox')
-        old_hash = sha(backup)
-        replacement = self.d / 'replacement.pdf'
-        with pikepdf.open(backup) as pdf:
-            pdf.docinfo['/Subject'] = 'New OCR run'
-            pdf.save(replacement)
-        shutil.copyfile(replacement, self.path)
-        new_hash = sha(self.path)
-        self.assertNotEqual(old_hash, new_hash)
-        self.assertEqual(stripper.strip_pdf(self.path), ('fixed', True))
-        self.assertEqual(sha(backup), old_hash)
-        self.assertEqual(sha(Path(str(backup) + '.' + new_hash)), new_hash)
 
     def test_normal_forms_and_unsigned_signature_fields_survive(self):
         for kind in ('/Tx', '/Sig'):
@@ -172,7 +156,6 @@ class RedBoxes(unittest.TestCase):
         before = stripper.read_xattrs(str(self.path))
         stripper.strip_pdf(self.path)
         self.assertEqual(stripper.read_xattrs(str(self.path)), before)
-        self.assertEqual(stripper.read_xattrs(str(self.path) + '.bak-redbox'), before)
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o644)
 
     def test_render_removes_only_expected_red_pixels(self):

@@ -36,7 +36,7 @@ $S [--preset ...] [--lang chi_sim] [--md] <PDF 或目录>
 
 ## 红框修复与验收
 
-本机验证的 AppleOCR 0.3.4 会写入红色调试框。脚本在 OCR 后及增量复用时清理已识别的 OCR Form，修改前保留 `.bak-redbox`，失败返回非零，不能据 OCR 识别成功宣称已完成交付。修复旧产物、遇到未知结构或升级插件时，先读 [红框兼容性与排查](references/red-boxes.md)。
+本机验证的 AppleOCR 0.3.4 会写入红色调试框。脚本在 OCR 后及增量复用时清理已识别的 OCR Form，失败返回非零，不能据 OCR 识别成功宣称已完成交付。修复旧产物、遇到未知结构或升级插件时，先读 [红框兼容性与排查](references/red-boxes.md)。
 
 ```bash
 "$S" --strip-boxes --dry-run <待修复的.ocr.pdf>  # 只检测

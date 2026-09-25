@@ -39,7 +39,7 @@ usage() {
   --check            只分诊不 OCR：报告每个 PDF 是否已有文字层
   --strip-boxes      只清理红框不 OCR：剥掉 AppleOCR 文字层里的红色描边框
                      （输入必须是待修复的产物；目录仅选 *<suffix>.pdf）
-                     首次修改前保留 .bak-redbox；支持 --dry-run
+                     支持 --dry-run
   --md               另产出同名 .md 纯文字版（按行高+章节正则还原标题层级）；
                      源 PDF 已可复制时跳过 OCR 直接生成
   --dry-run          只打印将要执行的命令
