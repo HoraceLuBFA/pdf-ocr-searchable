@@ -13,7 +13,7 @@
 
 仅处理 OCRmyPDF 的 /OCR- Form，验证 GlyphLessFont 和整条指令序列后，
 删除紧随隐形文字的已知调试框。普通页面及其他 Form 不参与删除。
-无框不写盘；修改前保留 .bak-redbox，临时产物验收后原子替换。
+无框不写盘；临时产物验收后原子替换。
 PDF 容器会重写，不承诺文件级字节不变。适用版本及限制见 references/red-boxes.md。
 
 用法:
@@ -26,7 +26,6 @@ import argparse
 import hashlib
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -215,21 +214,7 @@ def strip_pdf(path, check_only=False, quiet=False):
                     raise RuntimeError("临时产物仍有调试框，未修改")
             if digest(path) != original_hash:
                 raise RuntimeError("输入文件已被其他进程改变，未覆盖")
-            backup = path + '.bak-redbox'
-            # 兼容首份备份名；重跑 OCR 后按内容哈希另存，不覆盖历史备份。
-            if os.path.exists(backup) and digest(backup) != original_hash:
-                backup += '.' + original_hash
             attrs = read_xattrs(path)
-            if os.path.exists(backup):
-                if digest(backup) != original_hash:
-                    raise RuntimeError(f"备份已存在且内容不同：{backup}，未覆盖")
-            else:
-                with open(path, 'rb') as src, open(backup, 'xb') as dst:
-                    shutil.copyfileobj(src, dst)
-                shutil.copystat(path, backup)
-                copy_xattrs(attrs, backup)
-            if digest(path) != original_hash or digest(backup) != original_hash:
-                raise RuntimeError("备份期间文件改变，未覆盖")
             os.chmod(tmp, os.stat(path).st_mode & 0o777)
             copy_xattrs(attrs, tmp)
             if digest(path) != original_hash or read_xattrs(path) != attrs:
