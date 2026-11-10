@@ -36,11 +36,7 @@ bash ~/.agents/skills/pdf-ocr-searchable/scripts/ocr_pdf.sh --help
 
 ### Website package and installation guide
 
-The [official detail page](https://www.lumenghe.com/en/skills/pdf-ocr-searchable/) provides the complete ZIP, package date, source commit, SHA-256, and this README. [Release metadata](https://www.lumenghe.com/skills/pdf-ocr-searchable/release.json) identifies the current website package; GitHub and the website provide complementary installation routes.
-
-> Read https://www.lumenghe.com/en/skills/pdf-ocr-searchable/ and its installation guide, then install `pdf-ocr-searchable` for my current host. Check the existing installation and preserve local changes, verify the ZIP's SHA-256, and report the installed source commit and host discovery result.
-
-See [INSTALL.en.md](./INSTALL.en.md) for path inspection, safe extraction, the shared installation directory, host discovery, dependencies, and verification. The [plain-text guide](https://www.lumenghe.com/en/skills/pdf-ocr-searchable/install.txt) includes the exact download URL and checksum. Keep files under `~/.agents/skills/pdf-ocr-searchable/`; configure a host-specific entry as described in the guide. The website ZIP and the stated source commit contain the same skill files and documentation. Documentation synchronized on **2026-11-10**; existing functional version identifiers are retained.
+The [detail page](https://www.lumenghe.com/en/skills/pdf-ocr-searchable/) provides bilingual documentation and a complete ZIP. See [INSTALL.en.md](./INSTALL.en.md) for installation and verification; the [plain-text guide](https://www.lumenghe.com/en/skills/pdf-ocr-searchable/install.txt) lists the current package URL and SHA-256. Package files match the stated GitHub source commit.
 
 ### Install dependencies
 
@@ -112,7 +108,7 @@ The default language is Simplified Chinese, `chi_sim`. Select a language with `-
 | Japanese | `jpn` or `ja` |
 | Korean | `kor` or `ko` |
 
-Combined language strings such as `chi_sim+eng` are not supported. Chinese models may recognize some English within a page; spot-check proper names and references when a document contains substantial English.
+Choose one language from the table for each `--lang` argument. Chinese models may recognize some English within a page; spot-check proper names and references when a document contains substantial English.
 
 `--mode` accepts `livetext` (default), `accurate`, or `fast`. Some Live Text failures automatically fall back to `accurate`, which you can also select directly. `fast` supports fewer languages and is unsuitable for Chinese documents.
 
@@ -135,14 +131,14 @@ After OCR, supported AppleOCR debugging boxes are removed automatically. To repa
 "$S" --strip-boxes ~/Scans/
 ```
 
-The repair supports ordinary form fields and unsigned signature fields. It does not rewrite encrypted or already signed files. If cleanup fails, the script reports an error and stops subsequent Markdown generation for that file. See [red-box compatibility and troubleshooting](references/red-boxes.md) for supported formats and diagnostic steps.
+The repair supports ordinary form fields and unsigned signature fields; encrypted or signed files retain their original content. If cleanup fails, the script reports an error and stops subsequent Markdown generation for that file. See [red-box compatibility and troubleshooting](references/red-boxes.md) for supported formats and diagnostic steps.
 
 ## Usage notes
 
 - OCR and Markdown layout reconstruction may contain errors. Check important content against the original pages, especially contents lists, indexes, and complex headings.
 - `--check` determines whether OCR is needed from text density. Spot-check the body when pages with little text are mixed with scanned pages.
-- The script prompts for manual review when very few characters are recognized. A successful command exit does not mean every page was recognized correctly.
-- The default preset preserves scanned images, but the PDF container is rewritten; the complete file is not guaranteed to remain byte-for-byte identical. Keep the source PDF when you need the original.
+- The script prompts for review when very few characters are recognized. Spot-check body text, proper names and references during acceptance.
+- The default preset preserves scanned images and rewrites the PDF container. Retain the source PDF as the original.
 - Red-box cleanup targets known AppleOCR formats. If a plugin update triggers a format-compatibility warning, consult the compatibility guide.
 
 Run `"$S" --help` to see all parameters.

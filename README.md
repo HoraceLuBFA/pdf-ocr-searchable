@@ -37,11 +37,7 @@ bash scripts/ocr_pdf.sh --help
 
 ### 官网完整包与安装指南
 
-[官网详情页](https://www.lumenghe.com/skills/pdf-ocr-searchable/)提供完整 ZIP、打包日期、来源提交、SHA-256 和本 README；[发布元数据](https://www.lumenghe.com/skills/pdf-ocr-searchable/release.json)记录当前官网包。GitHub 与官网共同提供安装入口。
-
-> 请先读取 https://www.lumenghe.com/skills/pdf-ocr-searchable/ 及其安装指南，再为当前宿主安装 `pdf-ocr-searchable`。检查已有安装并保留本地修改，校验 ZIP 的 SHA-256，完成后报告安装的来源提交与宿主发现结果。
-
-[INSTALL.md](./INSTALL.md)列明路径检查、安全解压、共享安装目录、宿主发现、依赖与验证步骤；[纯文本指南](https://www.lumenghe.com/skills/pdf-ocr-searchable/install.txt)另附当前下载链接和校验值。技能文件保留在 `~/.agents/skills/pdf-ocr-searchable/`，宿主入口按指南配置。官网 ZIP 与所标示来源提交使用相同的技能文件和文档。文档同步日期为 **2026-11-10**，功能版本沿用原有标识。
+[官网详情页](https://www.lumenghe.com/skills/pdf-ocr-searchable/)提供双语说明与完整 ZIP。[INSTALL.md](./INSTALL.md)列明安装及验证步骤，[纯文本指南](https://www.lumenghe.com/skills/pdf-ocr-searchable/install.txt)附当前下载链接与 SHA-256。安装包文件与标示的 GitHub 来源提交一致。
 
 ### 安装依赖
 
@@ -113,7 +109,7 @@ S=~/.agents/skills/pdf-ocr-searchable/scripts/ocr_pdf.sh
 | 日文 | `jpn` 或 `ja` |
 | 韩文 | `kor` 或 `ko` |
 
-不支持 `chi_sim+eng` 形式的语言叠加。中文模型可识别部分页内英文，英文占比较高时请抽查专有名词和参考文献。
+`--lang` 每次选择表中一种语言。中文模型可识别部分页内英文，英文占比较高时请抽查专有名词和参考文献。
 
 `--mode` 可选 `livetext`（默认）、`accurate`、`fast`。部分 Live Text 故障会自动回退到 `accurate`；也可直接指定该模式。`fast` 的语言支持范围较窄，不适合中文文档。
 
@@ -136,14 +132,14 @@ OCR 后会自动清理受支持的 AppleOCR 调试框。处理已有产物时，
 "$S" --strip-boxes ~/Scans/
 ```
 
-修复支持普通表单和未签名的签名域，不改写加密或已签名文件。清理失败会报告错误，并停止该文件后续 Markdown 生成。适用格式与排查方法见[红框兼容性说明](references/red-boxes.md)。
+修复支持普通表单和未签名的签名域；处理加密或已签名文件时保留原件。清理失败会报告错误，并停止该文件后续 Markdown 生成。适用格式与排查方法见[红框兼容性说明](references/red-boxes.md)。
 
 ## 使用提示
 
 - OCR 和 Markdown 排版还原可能存在误差，重要内容请对照原页核查。目录、索引和复杂标题尤其需要检查。
 - `--check` 根据文字密度判断是否需要 OCR；少量文字页和扫描页混排时，仍需抽查正文。
-- 识别字数很少时脚本会提示人工检查；命令成功退出不代表所有页面都识别正确。
-- 默认模式保留扫描图像，但 PDF 容器会重写，不保证整份文件字节不变。需要保留原始文件时，请留存源 PDF。
+- 识别字数很少时脚本会提示人工检查；验收时抽查正文、专有名词和参考文献。
+- 默认模式保留扫描图像并重写 PDF 容器，原始资料以源 PDF 留存。
 - 红框清理针对已知 AppleOCR 格式；插件升级后若提示格式不兼容，请参阅兼容性说明。
 
 全部参数可运行 `"$S" --help` 查看。
